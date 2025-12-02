@@ -26,15 +26,6 @@ print("Intercept b:", b)
 print("Predicted price for 2000 sqft:", newY_pred)
 print("MSE:", MSE)
 
-plt.scatter(x, y, label="Real Data", color="red")
-plt.plot(x, y_pred, label="Regression Line", color="blue")
-
-plt.xlabel("Square Footage")
-plt.ylabel("House Price")
-plt.title("Linear Regression (Manual)")
-plt.legend()
-plt.show()
-
 X = x.reshape(-1, 1)
 model = LinearRegression()
 model.fit(X, y)
@@ -44,3 +35,13 @@ print("Sklearn Intercept b:", model.intercept_)
 
 for i in range(10): 
     print(f"{x[i]} sqft => actual: {y[i]}, Predicted: {y_pred[i]}")
+    
+    
+plt.scatter(x, y, label="Real Data", color="red")
+plt.plot(x, y_pred, label="Regression Line", color="blue")
+
+plt.xlabel("Square Footage")
+plt.ylabel("House Price")
+plt.title("Linear Regression (Manual)")
+plt.legend()
+plt.show()

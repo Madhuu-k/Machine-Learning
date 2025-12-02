@@ -35,12 +35,3 @@ plt.title("Linear Regression (Manual)")
 plt.legend()
 plt.show()
 
-X = x.reshape(-1, 1)
-model = LinearRegression()
-model.fit(X, y)
-
-print("\nSklearn Slope m:", model.coef_[0])
-print("Sklearn Intercept b:", model.intercept_)
-
-for i in range(10): 
-    print(f"{x[i]} sqft => actual: {y[i]}, Predicted: {y_pred[i]}")
