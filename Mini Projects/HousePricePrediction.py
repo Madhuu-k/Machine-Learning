@@ -23,7 +23,7 @@ x = data[[
     "yr_built",
     "yr_renovated",
     "lat",
-    "long",
+    "long", 
     "sqft_living15",
     "sqft_lot15"
 ]].values
