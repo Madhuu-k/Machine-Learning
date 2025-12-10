@@ -24,11 +24,24 @@ scaler = StandardScaler()
 x_train_scaled = scaler.fit_transform(x_train)
 x_test_scaled = scaler.transform(x_test)
 
-svr = SVR(kernel='rbf', C=1.0, gamma='scale')
-svr.fit(x_train_scaled, y_train)
+kernels = ['rbf', 'sigmoid', 'poly', 'linear']
+c_values = [0.1, 1, 10]
+g_values = ['scale', 0.1, 1]
 
-pred = svr.predict(x_test_scaled)
+for k in kernels:
+    print("\n")
+    for c in c_values:
+        for g in g_values:
+            svr = SVR(kernel=k, C=c, gamma=g)
+            svr.fit(x_train_scaled, y_train)
+            pred = svr.predict(x_test_scaled)
+            print(f"Prediction with: Kernel - {k}, C = {c}, Gamma - {g}: ", pred[:4])
 
-print("SVR Prediction: ", pred[:5])
+# svr = SVR(kernel='rbf', C=1.0, gamma='scale')
+# svr.fit(x_train_scaled, y_train)
+
+# pred = svr.predict(x_test_scaled)
+
+# print("SVR Prediction: ", pred[:5])
 # print("Accuracy: ", accuracy_score(y_test, pred))
 
