@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 
 
@@ -16,6 +16,8 @@ numerical_cols = cleaned_data.select_dtypes(exclude="object").columns
 numerical_cols = numerical_cols.drop("Accident")
 
 cleaned_data[categorical_cols] = cleaned_data[categorical_cols].fillna("Unknown")
+cleaned_data = cleaned_data[cleaned_data["Accident_Severity"] != "Unknown"]
+
 
 for col in numerical_cols:
     cleaned_data[col] = cleaned_data[col].fillna(cleaned_data[col].median())
@@ -29,16 +31,18 @@ x_encoded = pd.get_dummies(x, drop_first=True)
 
 x_train, x_test, y_train, y_test = train_test_split(x_encoded, y, random_state=4, test_size=0.2)
 
-dt = DecisionTreeClassifier(
-    max_depth=5,
+rt = RandomForestClassifier(
+    max_depth=6,
     min_samples_leaf=3,
+    n_estimators=200,
+    n_jobs=1,
     random_state=42,
     class_weight="balanced"
 )
 
-dt.fit(x_train, y_train)
+rt.fit(x_train, y_train)
 
-y_pred = dt.predict(x_test)
+y_pred = rt.predict(x_test)
 
 print("Predictions: ", y_pred[:10])
 
@@ -47,20 +51,10 @@ print("Confusion Matrix: ", confusion_matrix(y_test, y_pred))
 print("Classification Report: ", classification_report(y_test, y_pred))
 
 importance = pd.Series(
-    dt.feature_importances_,
+    rt.feature_importances_,
     index = x_train.columns
 ).sort_values(ascending=False)
 
 print("Top Contributors: ")
 print(importance.head(10))
 
-plt.figure(figsize=(24, 24))
-plot_tree(
-    dt,
-    feature_names=x_train.columns,
-    class_names=dt.classes_,
-    filled=True,
-    rounded=True,
-    fontsize=6
-)
-plt.show()
