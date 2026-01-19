@@ -22,6 +22,15 @@ stage = None   # Base Case
 DOWN_ANGLE = 110
 UP_ANGLE = 145
 
+# ----- TTS Engine -----
+engine = pyttsx3.init()
+engine.setProperty('rate', 150)  # Speed percent (can go over 100)
+engine.setProperty('volume', 1.0)  # Volume 0-1
+
+def speak(text):
+    engine.say(text)
+    engine.runAndWait()
+
 def calculate_angle(a, b, c):
     a = np.array(a)
     b = np.array(b)
