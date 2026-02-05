@@ -36,6 +36,9 @@ OFFSET_Y = -40
 ALPHA = 0.25  # smoothing factor
 GRACE_PERIOD = 0.4
 
+gesture_frames = 0
+REQUIRED_FRAMES = 4
+
 cap = cv2.VideoCapture(0)
 
 smoothed_landmarks = None
@@ -78,16 +81,71 @@ while cap.isOpened():
 
         last_seen_time = current_time
 
-    if smoothed_landmarks and (current_time - last_seen_time) < GRACE_PERIOD:
-        points = []
-        for i, lm in enumerate(smoothed_landmarks):
-            x = int(lm.x * w)
-            y = int(lm.y * h)
-            points.append((x, y))
-            cv2.circle(frame, (x, y), 5, (0, 0, 255), -1)
+    # if smoothed_landmarks and (current_time - last_seen_time) < GRACE_PERIOD:
+    # if smoothed_landmarks:
+    #     points = []
+    #     for i, lm in enumerate(smoothed_landmarks):
+    #         x = int(lm.x * w)
+    #         y = int(lm.y * h)
+    #         points.append((x, y))
+    #         cv2.circle(frame, (x, y), 5, (0, 0, 255), -1)
             
-        for start, end in HAND_CONNECTIONS:
-            cv2.line(frame, points[start], points[end], (0, 255, 0), 2)
+    #     for start, end in HAND_CONNECTIONS:
+    #         cv2.line(frame, points[start], points[end], (0, 255, 0), 2)
+            
+    gesture_valid = False
+    
+    if result.hand_landmarks and smoothed_landmarks:
+        tip = smoothed_landmarks[8]
+        pip = smoothed_landmarks[6]
+        mcp = smoothed_landmarks[5]
+        
+        index_up = tip.y < pip.y < mcp.y
+        
+        middle_down = smoothed_landmarks[12].y > smoothed_landmarks[9].y
+        ring_down = smoothed_landmarks[16].y > smoothed_landmarks[13].y
+        pinky_down = smoothed_landmarks[20].y > smoothed_landmarks[17].y
+        
+        if index_up and middle_down and ring_down and pinky_down:
+            gesture_valid = True
+    
+    if gesture_valid:
+        gesture_frames += 1
+    else:
+        gesture_frames = 0
+        
+    if not result.hand_landmarks:
+        gesture_frames = 0
+        
+    if result.hand_landmarks and  gesture_frames >= REQUIRED_FRAMES:
+        base = smoothed_landmarks[5]
+        tip = smoothed_landmarks[8]
+        
+        dx = tip.x - base.x
+        dy = tip.y - base.y
+        
+        length = np.sqrt(dx*dx + dy*dy)
+        if length > 0:
+            dx /= length
+            dy /= length
+            
+        ANCHOR_DISTANCE = 0.5
+        
+        anchor_x = tip.x + dx * ANCHOR_DISTANCE
+        anchor_y = tip.y + dy * ANCHOR_DISTANCE 
+        
+        x = int(anchor_x * w)
+        y = int(anchor_y * h)
+        
+        size = 40 # Square Size
+        x = max(size // 2, min(w - size // 2, x))
+        y = max(size // 2, min(h - size // 2, y))
+        cv2.rectangle(frame,
+            (x - size // 2, y - size // 2),
+            (x + size // 2, y + size // 2),
+            (0, 225, 0),
+            2
+        )
 
     cv2.imshow("Sudarshan", frame)
 
