@@ -44,6 +44,10 @@ cap = cv2.VideoCapture(0)
 smoothed_landmarks = None
 last_seen_time = 0
 
+anchor_smooth_x = None
+anchor_smooth_y = None
+ANCHOR_ALPHA = 0.5
+
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
@@ -129,10 +133,18 @@ while cap.isOpened():
             dx /= length
             dy /= length
             
-        ANCHOR_DISTANCE = 0.5
+        depth_factor = np.clip(-tip.z, 0.02, 0.1)
+        ANCHOR_DISTANCE = 0.03 + depth_factor
         
         anchor_x = tip.x + dx * ANCHOR_DISTANCE
         anchor_y = tip.y + dy * ANCHOR_DISTANCE 
+        
+        if anchor_smooth_x is None:
+            anchor_smooth_x = anchor_x
+            anchor_smooth_y = anchor_y
+        
+        anchor_smooth_x = ANCHOR_ALPHA * anchor_x + (1 - ANCHOR_ALPHA) * anchor_smooth_x
+        anchor_smooth_y = ANCHOR_ALPHA * anchor_y + (1 - ANCHOR_ALPHA) * anchor_smooth_y
         
         x = int(anchor_x * w)
         y = int(anchor_y * h)
@@ -146,7 +158,8 @@ while cap.isOpened():
             (0, 225, 0),
             2
         )
-
+        cv2.putText(frame, "Gesture Detected", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+    
     cv2.imshow("Sudarshan", frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
