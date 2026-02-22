@@ -56,7 +56,15 @@ while capture.isOpened():
         for lm in smoothed_landmarks:
             x, y = int(lm[0] * w), int(lm[1] * h)
             cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
-    
+            
+        tip = smoothed_landmarks[8]
+        pip = smoothed_landmarks[6]
+        mcp = smoothed_landmarks[5]
+        index_up = tip[1] < pip[1] < mcp[1]
+        
+        if index_up: 
+            cv2.putText(frame, "INDEX UP", (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
+        
     # FPS calculation
     curr_time = time.time()
     if prev_time != 0:
