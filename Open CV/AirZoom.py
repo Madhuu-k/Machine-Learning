@@ -21,6 +21,8 @@ landmarks = vision.HandLandmarker.create_from_options(options)
 ALPHA = 0.15
 smoothed_landmarks = None
 prev_time = 0
+prev_distance_smooth = None
+DIST_ALPHA = 0.3
 
 capture = cv2.VideoCapture(0)
 
@@ -57,13 +59,52 @@ while capture.isOpened():
             x, y = int(lm[0] * w), int(lm[1] * h)
             cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
             
-        tip = smoothed_landmarks[8]
-        pip = smoothed_landmarks[6]
-        mcp = smoothed_landmarks[5]
-        index_up = tip[1] < pip[1] < mcp[1]
+        thumb_tip = smoothed_landmarks[4]
+        thumb_pip = smoothed_landmarks[3]
+        thumb_mcp = smoothed_landmarks[2]
+        thumb_up = thumb_tip[1] < thumb_pip[1] < thumb_mcp[1]
+                  
+        index_tip = smoothed_landmarks[8]
+        index_pip = smoothed_landmarks[6]
+        index_mcp = smoothed_landmarks[5]
+        index_up = index_tip[1] < index_pip[1] < index_mcp[1]
         
-        if index_up: 
-            cv2.putText(frame, "INDEX UP", (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
+        middle_tip = smoothed_landmarks[12]
+        middle_pip = smoothed_landmarks[10]
+        middle_mcp = smoothed_landmarks[9]
+        middle_up = middle_tip[1] < middle_pip[1] < middle_mcp[1]
+        
+        ringfinger_tip = smoothed_landmarks[16]
+        ringfinger_pip = smoothed_landmarks[14]
+        ringfinger_mcp = smoothed_landmarks[13]
+        ringfinger_up = ringfinger_tip[1] < ringfinger_pip[1]
+        
+        pinky_tip = smoothed_landmarks[20]
+        pinky_pip = smoothed_landmarks[18]
+        pinky_mcp = smoothed_landmarks[17]
+        pinky_up = pinky_tip[1] < pinky_pip[1] < pinky_mcp[1]
+        
+        # COMPUTE EUCLIDEAN DISTANCE FOR ZOOM GESTURE
+        dx = thumb_tip[0] - index_tip[0]
+        dy = thumb_tip[1] - index_tip[1]
+        distance = np.sqrt(dx**2 + dy**2)            
+        
+        finger_state_array = [thumb_up, index_up, middle_up, ringfinger_up, pinky_up]
+        
+        MIN_CONTROL = 0.05
+        MAX_CONTROL = 0.35
+        
+        if prev_distance_smooth is None:
+            prev_distance_smooth = distance
+            delta = 0
+        else:
+            distance_smooth = DIST_ALPHA * distance + (1 - DIST_ALPHA) * prev_distance_smooth
+            delta = distance_smooth - prev_distance_smooth
+            prev_distance_smooth = distance_smooth
+        
+        if finger_state_array[0] and finger_state_array[1] and not any(finger_state_array[2:]):
+            cv2.putText(frame, f"Distance: {distance:.2f}, Delta: {delta:.2f}", (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
+            
         
     # FPS calculation
     curr_time = time.time()
