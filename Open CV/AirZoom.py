@@ -4,9 +4,13 @@ import mediapipe as mp
 import time
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
-
+from pynput.mouse import Controller
 import pyautogui
+
 pyautogui.FAILSAFE = False
+pyautogui.PAUSE = 0
+
+mouse = Controller()
 
 MODEL_PATH = r"D:\Machine Learning\Open CV\hand_landmarker.task"
 
@@ -42,6 +46,22 @@ ZOOM_SPEED_MULTIPLIER = 40
 
 MIN_CONTROL = 0.05
 MAX_CONTROL = 0.35
+
+# AIR MOUSE VARIABLES
+
+screen_width, screen_height = pyautogui.size()
+
+cursor_x = None
+cursor_y = None
+
+CURSOR_ALPHA = 0.2
+
+air_mouse_active = False
+prev_index_state = True 
+index_down_time = 0
+
+last_cursor_update = 0
+CURSOR_UPDATE_INTERVAL = 0.01
 
 capture = cv2.VideoCapture(0)
 
@@ -80,34 +100,42 @@ while capture.isOpened():
         for lm in smoothed_landmarks:
             x, y = int(lm[0] * w), int(lm[1] * h)
             cv2.circle(frame, (x, y), 5, (0, 255, 0), -1)
+            
+        wrist_landmark = smoothed_landmarks[0]
 
         thumb_tip = smoothed_landmarks[4]
         thumb_pip = smoothed_landmarks[3]
         thumb_mcp = smoothed_landmarks[2]
-        thumb_up = thumb_tip[1] < thumb_pip[1] < thumb_mcp[1]
+        thumb_up = ( np.linalg.norm(np.array(thumb_tip[:2]) - np.array(wrist_landmark[:2])) >
+                    np.linalg.norm(np.array(thumb_pip[:2]) - np.array(wrist_landmark[:2])) * 1.15 )
 
         index_tip = smoothed_landmarks[8]
         index_pip = smoothed_landmarks[6]
         index_mcp = smoothed_landmarks[5]
-        index_up = index_tip[1] < index_pip[1] < index_mcp[1]
+        index_up = ( np.linalg.norm(np.array(index_tip[:2]) - np.array(wrist_landmark[:2])) >
+                    np.linalg.norm(np.array(index_pip[:2]) - np.array(wrist_landmark[:2])) * 1.15 )
 
         middle_tip = smoothed_landmarks[12]
         middle_pip = smoothed_landmarks[10]
         middle_mcp = smoothed_landmarks[9]
-        middle_up = middle_tip[1] < middle_pip[1] < middle_mcp[1]
+        middle_up = ( np.linalg.norm(np.array(middle_tip[:2]) - np.array(wrist_landmark[:2])) >
+                      np.linalg.norm(np.array(middle_pip[:2]) - np.array(wrist_landmark[:2])) * 1.15 )
 
         ring_tip = smoothed_landmarks[16]
         ring_pip = smoothed_landmarks[14]
         ring_mcp = smoothed_landmarks[13]
-        ring_up = ring_tip[1] < ring_pip[1] < ring_mcp[1]
+        ring_up  = ( np.linalg.norm(np.array(ring_tip[:2]) - np.array(wrist_landmark[:2])) >
+                    np.linalg.norm(np.array(ring_pip[:2]) - np.array(wrist_landmark[:2])) * 1.15 )
 
         pinky_tip = smoothed_landmarks[20]
         pinky_pip = smoothed_landmarks[18]
         pinky_mcp = smoothed_landmarks[17]
-        pinky_up = pinky_tip[1] < pinky_pip[1] < pinky_mcp[1]
+        pinky_up = ( np.linalg.norm(np.array(pinky_tip[:2]) - np.array(wrist_landmark[:2])) >
+                    np.linalg.norm(np.array(pinky_pip[:2]) - np.array(wrist_landmark[:2])) * 1.15 )
 
         finger_state_array = [thumb_up, index_up, middle_up, ring_up, pinky_up]
-
+        air_mouse_active = (not thumb_up and index_up and not middle_up and not ring_up and not pinky_up)   
+    
         dx = thumb_tip[0] - index_tip[0]
         dy = thumb_tip[1] - index_tip[1]
         distance = np.sqrt(dx**2 + dy**2)
@@ -129,12 +157,11 @@ while capture.isOpened():
 
         current_time = time.time()
 
-        if (
-            MIN_CONTROL < distance < MAX_CONTROL and
-            finger_state_array[0] and finger_state_array[1] and
-            not any(finger_state_array[2:])
-        ):
-
+        if (not air_mouse_active and 
+            MIN_CONTROL < distance < MAX_CONTROL and 
+            finger_state_array[0] and finger_state_array[1] and 
+            not any(finger_state_array[2:])):
+            
             if abs(zoom_delta) > ZOOM_THRESHOLD and (current_time - last_zoom_time) > ZOOM_COOLDOWN:
 
                 zoom_steps = int(abs(zoom_delta) * ZOOM_SPEED_MULTIPLIER)
@@ -157,13 +184,44 @@ while capture.isOpened():
 
         if current_time - zoom_display_time > ZOOM_DISPLAY_DURATION:
             zoom_state = "STABLE"
-
+        
+        # AIR MOUSE LOGIC
+        if air_mouse_active:
+            raw_x = index_tip[0] * screen_width
+            raw_y = index_tip[1] * screen_height
+            
+            if cursor_x is None:
+                cursor_x, cursor_y = raw_x, raw_y
+            else: 
+                # Apply exponential smoothing to cursor position
+                cursor_x = CURSOR_ALPHA * raw_x + (1 - CURSOR_ALPHA) * cursor_x 
+                cursor_y = CURSOR_ALPHA * raw_y + (1 - CURSOR_ALPHA) * cursor_y
+                
+            if time.time() - last_cursor_update > CURSOR_UPDATE_INTERVAL:
+                mouse.position = (int(cursor_x), int(cursor_y))
+                last_cursor_update = time.time()
+            
+            #  Check is index finger just went up to trigger a click
+            current_index_state = index_up
+            if prev_index_state and not current_index_state:
+                index_down_time = time.time()
+                
+            if not prev_index_state and current_index_state:
+                if time.time() - index_down_time < 0.5: 
+                    pyautogui.click()
+                    
+            prev_index_state = current_index_state   
+        
         cv2.putText(frame, zoom_state, (10,110),
             cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,0), 2)
 
         if finger_state_array[0] and finger_state_array[1] and not any(finger_state_array[2:]):
             cv2.putText(frame, f"Distance: {distance:.3f}", (10,70),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
+            
+        if air_mouse_active:
+            cv2.putText(frame, "AIR MOUSE ACTIVE", (10,150),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,255), 2)
 
     curr_time = time.time()
     if prev_time != 0:
